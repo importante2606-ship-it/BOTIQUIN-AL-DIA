@@ -64,6 +64,7 @@ fun BotiquinMainApp(
     val currentTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val geminiState by viewModel.geminiState.collectAsStateWithLifecycle()
 
     val inventoryProducts by viewModel.filteredInventory.collectAsStateWithLifecycle()
     val alertProducts by viewModel.alertProducts.collectAsStateWithLifecycle()
@@ -252,6 +253,10 @@ fun BotiquinMainApp(
                     BotiquinTab.REPOSICION -> {
                         RestockScreen(
                             restockProducts = restockProducts,
+                            geminiState = geminiState,
+                            onAnalyzeGemini = { viewModel.analyzeWithGemini() },
+                            onLoadMockData = { viewModel.loadMockTestData() },
+                            onClearGemini = { viewModel.clearGeminiAnalysis() },
                             onIncrement = { viewModel.incrementQuantity(it) },
                             onDecrement = { viewModel.decrementQuantity(it) },
                             onEdit = { product ->

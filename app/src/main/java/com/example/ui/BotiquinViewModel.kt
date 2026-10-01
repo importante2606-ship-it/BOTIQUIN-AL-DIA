@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.BotiquinDatabase
 import com.example.data.ProductEntity
 import com.example.data.ProductRepository
+import com.example.data.gemini.GeminiRestockResult
+import com.example.data.gemini.GeminiRestockService
+import com.example.data.gemini.ResultSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,13 +27,17 @@ enum class BotiquinTab(val title: String) {
 }
 
 /**
+ * Estado del análisis de IA con Gemini 3.5 Flash para la lista de reposición y guardado.
+ */
+sealed interface GeminiUiState {
+    object Idle : GeminiUiState
+    object Loading : GeminiUiState
+    data class Success(val result: GeminiRestockResult) : GeminiUiState
+    data class Error(val message: String, val fallbackResult: GeminiRestockResult) : GeminiUiState
+}
+
+/**
  * ViewModel que expone el estado de la UI y gestiona las operaciones de negocio.
- *
- * PUNTO CRÍTICO DE ERROR:
- * Al combinar flujos con 'combine' o exponer con 'stateIn', usar SIEMPRE
- * 'SharingStarted.WhileSubscribed(5000)'. Esto evita que la base de datos siga consultándose
- * cuando la app pasa a segundo plano o la pantalla rota, previniendo fugas de memoria (memory leaks)
- * y gasto innecesario de batería.
  */
 class BotiquinViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -49,6 +56,10 @@ class BotiquinViewModel(application: Application) : AndroidViewModel(application
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
+
+    // Estado del Sello de IA con Gemini
+    private val _geminiState = MutableStateFlow<GeminiUiState>(GeminiUiState.Idle)
+    val geminiState: StateFlow<GeminiUiState> = _geminiState.asStateFlow()
 
     // Flujo base desde Room Database
     val allProducts: StateFlow<List<ProductEntity>> = repository.allProducts
@@ -119,6 +130,39 @@ class BotiquinViewModel(application: Application) : AndroidViewModel(application
 
     fun selectCategory(category: String?) {
         _selectedCategory.value = if (_selectedCategory.value == category) null else category
+    }
+
+    /**
+     * Sello de IA: Ejecuta la llamada a Gemini 3.5 Flash para ordenar la reposición
+     * por prioridad médica y generar advertencias de almacenamiento con JSON Schema.
+     */
+    fun analyzeWithGemini() {
+        viewModelScope.launch {
+            _geminiState.value = GeminiUiState.Loading
+            val restockList = restockProducts.value
+            val allList = allProducts.value
+            val result = GeminiRestockService.analyzeRestock(restockList, allList)
+            if (result.source == ResultSource.GEMINI_API) {
+                _geminiState.value = GeminiUiState.Success(result)
+            } else {
+                _geminiState.value = GeminiUiState.Error(result.statusMessage, result)
+            }
+        }
+    }
+
+    /**
+     * Requisito 5: Carga datos de prueba (Mock) estáticos sin costo ni necesidad de API Key.
+     */
+    fun loadMockTestData() {
+        val mockResult = GeminiRestockService.getMockTestResult()
+        _geminiState.value = GeminiUiState.Success(mockResult)
+    }
+
+    /**
+     * Limpia o resetea el análisis de IA.
+     */
+    fun clearGeminiAnalysis() {
+        _geminiState.value = GeminiUiState.Idle
     }
 
     /**

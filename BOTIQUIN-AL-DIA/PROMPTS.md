@@ -115,3 +115,124 @@ ok y me guardas el promp y todo lo necesario en las evidencias y archivos porfa 
 - Sincronización de `README.md` (13 secciones) detallando la corrección en la escalera de mejoras y tarjeta anti-alucinación.
 - Aseguramiento de todos los archivos de evidencias (`E0` a `E5`, `qr.png`).
 - Sincronización en la carpeta `BOTIQUIN-AL-DIA/` y en la raíz del proyecto.
+
+---
+
+## Prompt 5: Integración de la API de Gemini (Sello de IA con Salida JSON Estructurada)
+
+**Fecha:** 1 de octubre de 2026  
+**Objetivo:** Integrar una llamada real a la API de Gemini (`gemini-3.5-flash`) para el Sello de IA del ejercicio: priorización médica de la lista de reposición y advertencias de almacenamiento e incompatibilidad en el botiquín del hogar.
+
+```markdown
+Integrá una llamada a la API de Gemini dentro de la app para esta tarea concreta:
+[SELLO DE IA DE MI EJERCICIO].
+
+Requisitos:
+1. La respuesta debe venir como JSON con un esquema fijo (responseSchema), no como
+   texto libre. Dame el esquema.
+2. La app consume ese JSON y lo muestra en pantalla como dato, no como párrafo.
+3. La llave de API se lee de una variable de entorno; mostrame cómo configurarla.
+4. Manejo de fallo: qué se muestra si la IA no responde, responde lento o devuelve
+   algo que no cumple el esquema.
+5. Un ejemplo de respuesta de prueba para desarrollar sin gastar llamadas.
+
+y guarda este prompt en "PROMPTS" como el 5° prompt
+```
+
+### Respuestas a los 5 requisitos técnicos:
+
+1. **Esquema JSON fijo (`responseSchema`):**
+```json
+{
+  "type": "OBJECT",
+  "properties": {
+    "prioritizedItems": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "name": { "type": "STRING", "description": "Nombre del producto a reponer" },
+          "priority": { "type": "STRING", "description": "Nivel de urgencia médica: URGENTE, ALTA, o MEDIA" },
+          "category": { "type": "STRING", "description": "Categoría farmacológica o indicación" },
+          "medicalReason": { "type": "STRING", "description": "Motivo conciso de por qué debe reponerse con esa prioridad" }
+        },
+        "required": ["name", "priority", "category", "medicalReason"]
+      }
+    },
+    "storageWarnings": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "productA": { "type": "STRING", "description": "Primer producto o categoría incompatible" },
+          "productB": { "type": "STRING", "description": "Segundo producto o factor de riesgo ambiental" },
+          "dangerLevel": { "type": "STRING", "description": "Nivel de riesgo: ALTO, MEDIO, o PRECAUCION" },
+          "recommendation": { "type": "STRING", "description": "Indicación precisa de separación física o guardado" }
+        },
+        "required": ["productA", "productB", "dangerLevel", "recommendation"]
+      }
+    }
+  },
+  "required": ["prioritizedItems", "storageWarnings"]
+}
+```
+
+2. **Consumo y visualización de datos estructurados:**
+La pantalla `RestockScreen` no muestra párrafos extensos de texto. Mapea cada elemento del JSON a componentes visuales dedicados:
+- Badges de urgencia coloreados (`URGENTE` en rojo, `ALTA` en naranja, `MEDIA` en azul).
+- Chips de categoría farmacológica.
+- Cajas de motivo sanitario individual.
+- Tarjetas de incompatibilidad con visualización `[Producto A] ❌ [Producto B]` y badge de nivel de riesgo (`RIESGO ALTO`, `RIESGO MEDIO`, `PRECAUCIÓN`).
+
+3. **Lectura de la llave de API:**
+- Se configuró el plugin Secrets Gradle para leer `GEMINI_API_KEY` desde `.env` o el panel de Secrets de AI Studio.
+- En código Kotlin se accede de manera segura mediante `BuildConfig.GEMINI_API_KEY`.
+- Se habilitó el permiso `<uses-permission android:name="android.permission.INTERNET" />` en `AndroidManifest.xml`.
+
+4. **Manejo de fallos y resiliencia:**
+- Timeout de 60 segundos en conexión, lectura y escritura mediante `OkHttpClient`.
+- En caso de error HTTP, falta de clave de API, sin conexión a internet o JSON no conforme al esquema, la app nunca se congela ni crashea:
+  - Muestra un banner ámbar explicativo: *"No se pudo conectar con la API de Gemini (Timeout/Sin clave). Se activó automáticamente el respaldo local de seguridad."*
+  - Activa de inmediato el motor de reglas sanitarias locales predefinidas en `GeminiRestockService.getLocalFallbackResult()`.
+  - Ofrece botón de reintento y botón de datos simulados.
+
+5. **Ejemplo de respuesta de prueba (Mock):**
+Disponible en el botón *"Prueba Mock"* de la interfaz y definido en `GeminiRestockService.MOCK_RESPONSE_JSON`.
+```json
+{
+  "prioritizedItems": [
+    {
+      "name": "Ibuprofeno 400mg",
+      "priority": "URGENTE",
+      "category": "Analgésico / Antinflamatorio",
+      "medicalReason": "Básico para alivio rápido de dolor agudo, fiebre o inflamación en el hogar."
+    },
+    {
+      "name": "Gasas estériles",
+      "priority": "ALTA",
+      "category": "Curación básica",
+      "medicalReason": "Imprescindibles para contener heridas sangrantes y prevenir infecciones inmediatas."
+    },
+    {
+      "name": "Alcohol 70%",
+      "priority": "MEDIA",
+      "category": "Antiséptico",
+      "medicalReason": "Útil para desinfección de material e instrumental; no colocar directo en heridas abiertas."
+    }
+  ],
+  "storageWarnings": [
+    {
+      "productA": "Alcohol / Antisépticos líquidos",
+      "productB": "Gasas estériles sin sellar",
+      "dangerLevel": "ALTO",
+      "recommendation": "Guardar líquidos inflamables en compartimentos inferiores y apósitos estériles en bolsa hermética para evitar contaminación por vapores o derrames."
+    },
+    {
+      "productA": "Medicamentos fotosensibles (Ibuprofeno)",
+      "productB": "Luz solar directa o humedad",
+      "dangerLevel": "MEDIO",
+      "recommendation": "Mantener siempre dentro de su caja original de cartón y lejos de fuentes de calor o vapor del baño."
+    }
+  ]
+}
+```
