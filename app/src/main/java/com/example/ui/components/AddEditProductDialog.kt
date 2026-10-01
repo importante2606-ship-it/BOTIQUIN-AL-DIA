@@ -1,7 +1,9 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,6 +20,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -25,20 +29,24 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,14 +77,33 @@ private val UNIDADES_DISPONIBLES = listOf(
 )
 
 /**
- * Diálogo modal para registrar (o editar) un producto en el botiquín del hogar.
+ * Convierte un epoch millis a LocalDate en la zona horaria del sistema.
+ */
+private fun millisToLocalDate(millis: Long): LocalDate {
+    return Instant.ofEpochMilli(millis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+}
+
+/**
+ * Convierte un LocalDate a epoch millis a la medianoche en la zona horaria del sistema.
+ */
+private fun localDateToMillis(date: LocalDate): Long {
+    return date.atStartOfDay(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
+}
+
+/**
+ * Diálogo modal para registrar o editar un producto en el botiquín del hogar.
  * Cumple con la Función 1: Registrar producto con cantidad y fecha de vencimiento.
  *
- * PUNTOS CRÍTICOS DE ERROR:
- * 1. El DatePicker de Material 3 devuelve 'selectedDateMillis' en tiempo universal coordinado (UTC).
- *    Si intentas leer directamente con SimpleDateFormat en hora local sin especificar UTC,
- *    en países de América Latina (UTC-3 a UTC-5) la fecha se atrasará exactamente un día.
- * 2. La cantidad debe parsearse con seguridad (evitando NumberFormatException si el usuario borra el campo).
+ * PUNTOS CRÍTICOS RESUELTOS:
+ * 1. OutlinedTextField con readOnly consume los eventos táctiles en Compose; se incluye un
+ *    Box superpuesto transparente (overlay) e IconButton dedicado para garantizar que cualquier
+ *    toque abra el selector de fecha inmediatamente.
+ * 2. Se agregan accesos directos (+1 mes, +6 meses, +1 año, +2 años) para agilizar la carga.
+ * 3. Se sincronizan las conversiones de UTC (retornadas por Material 3 DatePicker) con la zona horaria local.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -91,38 +118,39 @@ fun AddEditProductDialog(
     var selectedCategory by remember { mutableStateOf(initialProduct?.category ?: "Analgésico") }
     var notes by remember { mutableStateOf(initialProduct?.notes ?: "") }
 
-    // Fecha por defecto: fecha existente o 6 meses a futuro
+    // Fecha inicial: la del producto existente o hoy + 6 meses
     val defaultExpiry = remember {
-        initialProduct?.expiryDateMillis ?: run {
-            LocalDate.now(ZoneId.systemDefault())
-                .plusMonths(6)
-                .atStartOfDay(ZoneOffset.UTC)
-                .toInstant()
-                .toEpochMilli()
-        }
+        initialProduct?.expiryDateMillis ?: localDateToMillis(
+            LocalDate.now(ZoneId.systemDefault()).plusMonths(6)
+        )
     }
     var expiryDateMillis by remember { mutableLongStateOf(defaultExpiry) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
 
-    // Formateador de fecha seguro
-    val dateString = remember(expiryDateMillis) {
-        val date = Instant.ofEpochMilli(expiryDateMillis)
-            .atZone(ZoneOffset.UTC)
-            .toLocalDate()
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-        date.format(formatter)
-    }
+    // Fecha formateada en dd/MM/yyyy
+    val currentDate = millisToLocalDate(expiryDateMillis)
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val dateString = currentDate.format(formatter)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = if (initialProduct == null) "Registrar Producto" else "Editar Producto",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (initialProduct == null) Icons.Default.EditCalendar else Icons.Default.DateRange,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(26.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (initialProduct == null) "Registrar Producto" else "Editar Producto",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         },
         text = {
             Column(
@@ -138,8 +166,8 @@ fun AddEditProductDialog(
                         name = it
                         nameError = it.isBlank()
                     },
-                    label = { Text("Nombre del medicamento o producto *") },
-                    placeholder = { Text("Ej: Ibuprofeno 400mg, Gasas, Alcohol") },
+                    label = { Text("Nombre del medicamento *") },
+                    placeholder = { Text("Ej: Ibuprofeno 400mg, Alcohol, Gasas") },
                     isError = nameError,
                     supportingText = {
                         if (nameError) Text("El nombre es obligatorio")
@@ -160,7 +188,6 @@ fun AddEditProductDialog(
                     OutlinedTextField(
                         value = quantityText,
                         onValueChange = { text ->
-                            // Filtrar solo dígitos positivos
                             if (text.all { it.isDigit() }) {
                                 quantityText = text
                             }
@@ -177,7 +204,6 @@ fun AddEditProductDialog(
                         value = selectedUnit,
                         onValueChange = { selectedUnit = it },
                         label = { Text("Presentación") },
-                        placeholder = { Text("comprimidos, ml, etc") },
                         singleLine = true,
                         modifier = Modifier
                             .weight(1.3f)
@@ -185,7 +211,7 @@ fun AddEditProductDialog(
                     )
                 }
 
-                // Sugerencias rápidas de unidad
+                // Sugerencias de unidad
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.padding(top = 4.dp)
@@ -199,51 +225,115 @@ fun AddEditProductDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // 3. Fecha de Vencimiento (Campo clickable con calendario)
+                // 3. SECCIÓN FECHA DE VENCIMIENTO (Completamente interactiva y accesible)
                 Text(
                     text = "Fecha de Vencimiento *",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                OutlinedTextField(
-                    value = dateString,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Vence el (DD/MM/AAAA)") },
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = "Seleccionar fecha de vencimiento",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    },
+                // Contenedor Box con overlay transparente para que CUALQUIER toque abra el calendario
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showDatePicker = true }
-                        .testTag("input_product_expiry")
-                )
+                        .testTag("input_product_expiry_box")
+                ) {
+                    OutlinedTextField(
+                        value = dateString,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Fecha seleccionada") },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { showDatePicker = true },
+                                modifier = Modifier.testTag("btn_open_calendar_icon")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Abrir calendario",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
+                    // Capa transparente superior para capturar el click en cualquier parte del campo
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDatePicker = true }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Botón explícito para cambiar fecha en calendario
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("btn_change_expiry_date"),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Abrir Calendario para Cambiar Fecha")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Atajos rápidos de vencimiento común
                 Text(
-                    text = "Seleccioná la fecha impresa en la caja o blíster",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                    text = "O elegí un plazo rápido desde hoy:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    val today = LocalDate.now(ZoneId.systemDefault())
+
+                    QuickDateChip("+1 mes") {
+                        expiryDateMillis = localDateToMillis(today.plusMonths(1))
+                    }
+                    QuickDateChip("+6 meses") {
+                        expiryDateMillis = localDateToMillis(today.plusMonths(6))
+                    }
+                    QuickDateChip("+1 año") {
+                        expiryDateMillis = localDateToMillis(today.plusYears(1))
+                    }
+                    QuickDateChip("+2 años") {
+                        expiryDateMillis = localDateToMillis(today.plusYears(2))
+                    }
+                    QuickDateChip("Ya vencido (-5d)") {
+                        expiryDateMillis = localDateToMillis(today.minusDays(5))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // 4. Categoría médica
                 Text(
                     text = "Categoría en el botiquín",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
 
                 FlowRow(
@@ -266,7 +356,7 @@ fun AddEditProductDialog(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Notas o ubicación (opcional)") },
-                    placeholder = { Text("Ej: Guardar lejos de calor, cajón 1") },
+                    placeholder = { Text("Ej: En cajón superior, no mezclar") },
                     singleLine = false,
                     maxLines = 2,
                     modifier = Modifier.fillMaxWidth()
@@ -292,7 +382,7 @@ fun AddEditProductDialog(
                 },
                 modifier = Modifier.testTag("btn_save_product")
             ) {
-                Text("Guardar")
+                Text("Guardar Producto")
             }
         },
         dismissButton = {
@@ -304,33 +394,66 @@ fun AddEditProductDialog(
 
     // Modal DatePickerDialog de Material 3
     if (showDatePicker) {
+        // Obtenemos la fecha actualmente configurada en UTC para el DatePickerState
+        val initialUtcMillis = remember(expiryDateMillis) {
+            val local = millisToLocalDate(expiryDateMillis)
+            local.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
+
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = expiryDateMillis
+            initialSelectedDateMillis = initialUtcMillis
         )
 
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
-                        datePickerState.selectedDateMillis?.let { pickedMillis ->
-                            // Guardamos la medianoche exacta
-                            expiryDateMillis = pickedMillis
+                        datePickerState.selectedDateMillis?.let { pickedUtcMillis ->
+                            // Convertir fecha UTC seleccionada a LocalDate
+                            val pickedLocalDate = Instant.ofEpochMilli(pickedUtcMillis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate()
+                            // Guardar en la zona local a medianoche
+                            expiryDateMillis = localDateToMillis(pickedLocalDate)
                         }
                         showDatePicker = false
                     },
                     modifier = Modifier.testTag("btn_confirm_date")
                 ) {
-                    Text("Aceptar")
+                    Text("Confirmar Fecha")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
+                    Text("Volver")
                 }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = true
+            )
         }
+    }
+}
+
+@Composable
+private fun QuickDateChip(
+    label: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

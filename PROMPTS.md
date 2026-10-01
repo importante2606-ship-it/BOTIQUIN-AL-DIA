@@ -1,6 +1,6 @@
 # Bitácora de Prompts · Botiquín al Día
 
-Este archivo registra la evolución de las instrucciones y requerimientos del proyecto a lo largo de la escalera de desarrollo (P0 a M5).
+Este archivo registra la evolución de las instrucciones, pruebas y requerimientos del proyecto a lo largo de la escalera de desarrollo (P0 a M5).
 
 ---
 
@@ -57,7 +57,7 @@ Dónde guardar:
 ## Prompt 2: Estructura de Repositorio y Carpetas de Entrega
 
 **Fecha:** 1 de octubre de 2026  
-**Objetivo:** Crear la estructura de carpetas `BOTIQUIN-AL-DIA/` con la documentación técnica, bitácora de prompts, variables de entorno de ejemplo y evidencias.
+**Objetivo:** Crear la estructura de carpetas `BOTIQUIN-AL-DIA/` con la documentación técnica (13 partes), bitácora de prompts, variables de entorno de ejemplo y directorio de evidencias gráficas.
 
 ```markdown
 (podrias hacerme la siguiente estrucura en el repositorio pero solo las carpetas ademas de hacerme los (README) y pega el prompt anterior 
@@ -80,20 +80,38 @@ BOTIQUIN-AL-DIA/
 
 ---
 
-## Prompt 3 (M1): Perfeccionamiento de Registro y Estados Visuales
-**Objetivo:** Ajustar el selector de fechas (`DatePicker` de Material 3), selector de unidades (comprimidos, unidades, ml, sobres) y validaciones en tiempo real para evitar ingresos accidentales con fechas vacías o cantidades nulas.
+## Prompt 3 (M4 - Corrección de Error Crítico): Desbloqueo del Selector de Fecha
+
+**Fecha:** 1 de octubre de 2026  
+**Problema reportado por el usuario:** Imposibilidad de seleccionar o cambiar la fecha de vencimiento en el formulario de carga/edición.
+
+```markdown
+Necesito que arregles un error el cual es que no puedo cambiar la fecha de vencimiento estoy vas de intentar y no puedo cambiarla
+```
+
+**Diagnóstico Técnico:**  
+En Jetpack Compose, el componente `OutlinedTextField` con `readOnly = true` consume los gestos táctiles internamente para el manejo de foco y accesibilidad, impidiendo que el modificador `.clickable { showDatePicker = true }` fuera invocado.
+
+**Solución aplicada:**
+1. Implementación de una capa transparente (overlay táctil en `Box`) sobre el campo para capturar cualquier pulsación táctil de forma infalible.
+2. Conversión del ícono de calendario en un `IconButton` interactivo.
+3. Botón explícito visible: *"Abrir Calendario para Cambiar Fecha"*.
+4. Inclusión de atajos rápidos de vencimiento farmacéutico común (+1 mes, +6 meses, +1 año, +2 años, ya vencido).
+5. Conversión y normalización de fecha UTC a hora local del dispositivo.
 
 ---
 
-## Prompt 4 (M2): Persistencia Local Robusta con SQLite / Room
-**Objetivo:** Implementar la base de datos local con Room Database (`ProductEntity`, `ProductDao`, `ProductRepository`), garantizando que al cerrar la aplicación o reiniciar el dispositivo los datos no se pierdan.
+## Prompt 4: Consolidación y Registro en Archivos de GitHub y Evidencias
 
----
+**Fecha:** 1 de octubre de 2026  
+**Objetivo:** Guardar todos los prompts, sincronizar la estructura de evidencias, documentar la solución y dejar el repositorio preparado para entrega.
 
-## Prompt 5 (M3): Experiencia Móvil Pulida y Pantalla Vacía
-**Objetivo:** Optimizar diseño táctil, padding ergonómico de 48dp en botones de acción rápida (+ / - stock), empty states amigables para cuando no hay alertas ni productos agotados, y soporte para modo oscuro nativo.
+```markdown
+ok y me guardas el promp y todo lo necesario en las evidencias y archivos porfa de github
+```
 
----
-
-## Prompt 6 (M4 & M5): Validaciones e Inteligencia Local
-**Objetivo:** Incorporar recomendaciones inteligentes de almacenamiento del botiquín (separación de medicamentos fotosensibles, antisépticos como agua oxigenada/alcohol alejados de gasas estériles sin sellar) y ordenamiento por urgencia médica en la lista de reposición.
+**Acciones realizadas:**
+- Actualización de `PROMPTS.md` con todos los requerimientos y correcciones.
+- Sincronización de `README.md` (13 secciones) detallando la corrección en la escalera de mejoras y tarjeta anti-alucinación.
+- Aseguramiento de todos los archivos de evidencias (`E0` a `E5`, `qr.png`).
+- Sincronización en la carpeta `BOTIQUIN-AL-DIA/` y en la raíz del proyecto.
