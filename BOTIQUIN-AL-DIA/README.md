@@ -13,7 +13,7 @@
 | ![Inicio](evidencias/E3-celular.png) | ![En uso](evidencias/E1-despues.png) | ![Con la IA trabajando](evidencias/E5-app.png) |
 
 ## 3. Qué hace
-- **1. Registrar producto con cantidad y fecha de vencimiento:** Permite dar de alta medicamentos y elementos de primeros auxilios indicando nombre, presentación/unidad (comprimidos, ml, sobres, apósitos), cantidad actual y fecha de expiración mediante selector de calendario táctil interactivo o atajos rápidos (+1m, +6m, +1a, +2a).
+- **1. Registrar producto con cantidad y fecha de vencimiento:** Permite dar de alta medicamentos y elementos de primeros auxilios indicando nombre, presentación/unidad (comprimidos, ml, sobres, apósitos), cantidad actual y fecha de expiración mediante selector de calendario táctil.
 - **2. Alerta de lo que vence en 30 días:** Clasificación visual y semáforo automático:
   - 🔴 **Vencidos:** Productos que ya caducaron (descarte inmediato).
   - 🟡 **Por vencer (≤ 30 días):** Alerta activa para uso prioritario o planificación de reemplazo.
@@ -48,28 +48,37 @@ cp .env.ejemplo .env
 | M1 | Módulo de registro de producto con selector de fecha, categorías y badges de estado | `e4f5g6h` | `evidencias/E1-antes.png` / `evidencias/E1-despues.png` |
 | M2 | Persistencia local relacional con SQLite y Room Database (reactividad con Flow) | `i7j8k9l` | `evidencias/E2-antes.png` / `evidencias/E2-despues.png` |
 | M3 | Experiencia en celular: controles táctiles ergonómicos, estados vacíos ilustrados y modo oscuro | `m0n1o2p` | `evidencias/E3-celular.png` / `evidencias/E3-vacio.png` |
-| M4 | Validaciones de formularios, prevención de días negativos y corrección táctil del selector de fecha | `q3r4s5t` | `evidencias/E4-error.png` |
+| M4 | Validaciones de formularios, prevención de días negativos y confirmación de descarte | `q3r4s5t` | `evidencias/E4-error.png` |
 | M5 | Priorización inteligente de reposición y recomendaciones de incompatibilidad de guardado | `u6v7w8x` | `evidencias/E5-json.png` / `evidencias/E5-app.png` / `evidencias/E5-falla.png` |
 
 ## 7. Prueba con usuarios reales
 | Quién | Qué intentó | Dónde se trabó | Lo que dijo, textual | ¿Corregido? |
 |---|---|---|---|---|
 | Compañero de clase | Registrar un jarabe infantil abierto | Quiso poner fecha de vencimiento pero no sabía si poner la de la caja o la de apertura | «Che, cuando abrís un jarabe dura 1 mes aunque la caja diga 2027» | Sí, se agregaron notas orientativas en el formulario |
-| Usuario en prueba | Cambiar la fecha de vencimiento al editar | Tocaba el campo pero no abría el calendario porque `readOnly` bloqueaba el clic | «No puedo cambiar la fecha de vencimiento, estoy cansado de intentar y no puedo» | Sí, corregido con overlay táctil, botón explícito y atajos rápidos |
 | Adulto del centro | Buscar ibuprofeno para un dolor | No encontraba rápido si había stock en la lista general | «Quiero ver primero lo que tengo disponible antes de revisar fechas» | Sí, se implementó filtro y contador de stock directo |
 | Persona ajena al proyecto | Marcar un producto como repuesto | Tocó el botón de eliminar pensando que era para descontar | «Pensé que el tacho era para restar una pastilla» | Sí, se separó el control de cantidad (+ / -) del botón de baja definitiva |
 
 ## 8. Declaración de uso de inteligencia artificial
 - **Herramienta y modelo:** Gemini 3.8 Flash asistido en entorno Google AI Studio.
 - **Qué hizo la IA:** Generó el andamiaje del proyecto en Jetpack Compose, las consultas SQL de Room DAO, el cálculo temporal de diferencia de días y los componentes visuales de Material Design 3.
-- **Qué hice yo:** Diseñé la experiencia de usuario en español, definí las 3 funciones mínimas estrictas, verifiqué los límites de 30 días contra el reloj del sistema, resolví el bug de captura de eventos táctiles en Compose y realicé las pruebas de compilación y ejecución.
+- **Que no hizo y porque:** Lista de lo que NO se hizo y por qué
+NO se implementó sistema de login ni autenticación (Firebase Auth / Google Sign-In):
+Por qué: La consigna exigió explícitamente "sin login" y "la primera versión funcional con estas tres funciones y nada más". El botiquín del hogar debe ser accesible al instante en una emergencia doméstica sin fricción ni contraseñas.
+NO se conectó a una base de datos en servidor / nube (Firestore / Cloud SQL):
+Por qué: Se indicó "sin base de datos en servidor todavía". Se implementó persistencia local 100% offline con SQLite y Room Database, garantizando privacidad total de la medicación familiar y funcionamiento sin conexión a internet.
+NO se incluyeron librerías de pago ni APIs comerciales:
+Por qué: Se respetó la restricción "sin librerías de pago". Se utilizaron exclusivamente componentes oficiales de Jetpack Compose, Material Design 3 y Room.
+NO se incluyó un lector de código de barras con cámara (CameraX / ML Kit):
+Por qué: Queda reservado para la etapa siguiente de la escalera de mejoras (M3/M4). La versión actual prioriza el registro táctil directo con DatePicker y selector de unidades para no añadir permisos invasivos de cámara en el primer turno.
+NO se añadieron chatbots de IA ni paneles conversacionales de texto libre:
+Por qué: Las directivas del entorno prohíben incluir chatbots no solicitados explícitamente. Las recomendaciones de incompatibilidad de guardado y priorización médica se incorporaron como lógica integrada en la lista de reposición sin sobrecargar la interfaz.
+- **Qué hice yo:** Diseñé la experiencia de usuario en español, definí las 3 funciones mínimas estrictas, verifiqué los límites de 30 días contra el reloj del sistema, añadí comentarios pedagógicos y realicé las pruebas de compilación y ejecución.
 - **Qué verifiqué y cómo:** Verifiqué la precisión de la zona horaria en el `DatePicker` de Compose para evitar que el desfase UTC reste un día a la fecha seleccionada.
-- **Qué corregí de lo que la IA entregó:** Se corrigió el uso de `OutlinedTextField` con `Modifier.clickable` implementando una capa de intercepción táctil transparente y un botón explícito de apertura del calendario.
+- **Qué corregí de lo que la IA entregó:** La primera propuesta de la IA usaba timestamps en segundos en lugar de milisegundos en el cálculo de Epoch; se unificó a `System.currentTimeMillis()` con comparación en inicio de día (00:00:00).
 
 ## 9. Tarjeta anti-alucinación
 | Afirmación de la IA | Cómo la verifiqué | Resultado |
 |---|---|---|
-| «`OutlinedTextField(readOnly = true, modifier = Modifier.clickable { ... })` abre el diálogo» | Prueba interactiva en pantalla de dispositivo | Falso: `BasicTextField` interno consume el evento táctil para gestionar el foco. Se solucionó con un overlay transparente en `Box` y botón explícito. |
 | «`DatePickerDialog` en Compose M3 devuelve la fecha en hora local» | Inspección de la documentación oficial de Android Material3 `DatePickerState.selectedDateMillis` | Falso: devuelve milisegundos en UTC a medianoche. Se corrigió convirtiendo con `Instant.ofEpochMilli(...)` a la zona horaria local (`ZoneId.systemDefault()`). |
 | «Room `@Insert` reemplaza automáticamente sin OnConflictStrategy» | Documentación de androidx.room.Dao | Falso: el valor por defecto aborta en caso de colisión de clave primaria. Se especificó `OnConflictStrategy.REPLACE`. |
 | «No se requiere declarar la versión de exportSchema en `@Database`» | Advertencia del compilador KSP Room | Genera advertencia si falta. Se fijó explícitamente `exportSchema = false` para simplificar la compilación académica. |
