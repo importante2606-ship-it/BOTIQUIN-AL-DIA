@@ -61,6 +61,17 @@ cp .env.ejemplo .env
 ## 8. Declaración de uso de inteligencia artificial
 - **Herramienta y modelo:** Gemini 3.8 Flash asistido en entorno Google AI Studio.
 - **Qué hizo la IA:** Generó el andamiaje del proyecto en Jetpack Compose, las consultas SQL de Room DAO, el cálculo temporal de diferencia de días y los componentes visuales de Material Design 3.
+- **Que no hizo y porque:** Lista de lo que NO se hizo y por qué
+NO se implementó sistema de login ni autenticación (Firebase Auth / Google Sign-In):
+Por qué: La consigna exigió explícitamente "sin login" y "la primera versión funcional con estas tres funciones y nada más". El botiquín del hogar debe ser accesible al instante en una emergencia doméstica sin fricción ni contraseñas.
+NO se conectó a una base de datos en servidor / nube (Firestore / Cloud SQL):
+Por qué: Se indicó "sin base de datos en servidor todavía". Se implementó persistencia local 100% offline con SQLite y Room Database, garantizando privacidad total de la medicación familiar y funcionamiento sin conexión a internet.
+NO se incluyeron librerías de pago ni APIs comerciales:
+Por qué: Se respetó la restricción "sin librerías de pago". Se utilizaron exclusivamente componentes oficiales de Jetpack Compose, Material Design 3 y Room.
+NO se incluyó un lector de código de barras con cámara (CameraX / ML Kit):
+Por qué: Queda reservado para la etapa siguiente de la escalera de mejoras (M3/M4). La versión actual prioriza el registro táctil directo con DatePicker y selector de unidades para no añadir permisos invasivos de cámara en el primer turno.
+NO se añadieron chatbots de IA ni paneles conversacionales de texto libre:
+Por qué: Las directivas del entorno prohíben incluir chatbots no solicitados explícitamente. Las recomendaciones de incompatibilidad de guardado y priorización médica se incorporaron como lógica integrada en la lista de reposición sin sobrecargar la interfaz.
 - **Qué hice yo:** Diseñé la experiencia de usuario en español, definí las 3 funciones mínimas estrictas, verifiqué los límites de 30 días contra el reloj del sistema, añadí comentarios pedagógicos y realicé las pruebas de compilación y ejecución.
 - **Qué verifiqué y cómo:** Verifiqué la precisión de la zona horaria en el `DatePicker` de Compose para evitar que el desfase UTC reste un día a la fecha seleccionada.
 - **Qué corregí de lo que la IA entregó:** La primera propuesta de la IA usaba timestamps en segundos en lugar de milisegundos en el cálculo de Epoch; se unificó a `System.currentTimeMillis()` con comparación en inicio de día (00:00:00).
